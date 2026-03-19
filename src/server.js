@@ -28,7 +28,7 @@ const gameState = {
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 // Serve observer.html from embedded source (avoids Docker layer cache)
-const observerHtml = require('./observer-html');
+const observerHtml = require('./observer-page');
 app.get('/', (req, res) => res.redirect('/observer.html'));
 app.get('/observer.html', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
