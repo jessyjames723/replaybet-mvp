@@ -8,9 +8,12 @@ const GAME_HTML  = path.join(ENGINE_DIR, 'game.html');
 
 module.exports = function setupGameProxy(app, gameState) {
 
-  // Статические файлы движка
+  // Статические файлы движка и operator_logos
   const express = require('express');
   app.use('/engine', express.static(ENGINE_DIR, { maxAge: '1h' }));
+  app.use('/operator_logos', express.static(path.join(__dirname, '..', 'public', 'operator_logos'), { maxAge: '1h' }));
+  // Общая статика из public/
+  app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
 
   // GET /game — наш HTML с конфигом
   app.get('/game', (req, res) => {
