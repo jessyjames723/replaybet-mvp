@@ -180,7 +180,24 @@ async function startBot() {
     if (gameFrame) {
       const iframeUrl = gameFrame.url();
       console.log('[bot] Game iframe URL:', iframeUrl.substring(0, 80));
-      await postGameData({ type: 'iframe_url', url: iframeUrl, timestamp: Date.now() });
+      // Сохраняем iframe URL в game-state через отдельный эндпоинт
+      // Временно: шлём как кастомный заголовок в следующем init
+      // Сохраняем напрямую через fetch
+      try {
+        await fetch(`${SERVER_URL}/game-data`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Bot-Token': BOT_SECRET },
+          body: JSON.stringify({ type: 'iframe_url', url: iframeUrl, timestamp: Date.now() })
+        });
+      } catch(e) {}
+      // Также пробуем старый сервер через query param
+      try {
+        await fetch(`${SERVER_URL}/game-data?iframeUrl=` + encodeURIComponent(iframeUrl), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Bot-Token': BOT_SECRET },
+          body: JSON.stringify({ type: 'init', parsed: { iframeUrl }, raw: '', timestamp: Date.now() })
+        });
+      } catch(e) {}
     }
   } catch (e) { console.error('[bot] iframe URL error:', e.message); }
 
