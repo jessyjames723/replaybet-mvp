@@ -10,8 +10,8 @@ module.exports = /* html */`<!DOCTYPE html>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #0a0a0f; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
 
-#wrap { position: relative; display: inline-block; }
-#stream { display: block; max-width: 100vw; max-height: 100vh; }
+#wrap { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+#stream { display: block; width: 100vw; height: 100vh; object-fit: contain; }
 
 /* Статус-бар сверху */
 #topbar {
