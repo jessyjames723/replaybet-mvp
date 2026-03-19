@@ -20,6 +20,7 @@ RUN npm install --omit=dev
 RUN npx playwright install chromium --with-deps
 
 COPY src/ ./src/
+COPY public/ ./public/
 
 EXPOSE 3000
 
