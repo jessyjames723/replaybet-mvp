@@ -77,10 +77,10 @@ function parseSpinResponse(rawText) {
 function parseInitResponse(rawText) {
   const params = new URLSearchParams(rawText);
 
-  if (!params.has('def_s') && !params.has('balance')) return null;
+  if (!params.has('balance')) return null;
 
-  // If it has 's' — it's a spin, not init
-  if (params.has('s') && params.has('ntp')) return null;
+  // If it has 's' with ntp and no index — it's a spin, not init  
+  if (params.has('s') && params.has('ntp') && !params.has('index')) return null;
 
   const defSRaw = params.get('def_s');
   const def_s = defSRaw ? defSRaw.split(',').map(Number) : null;
@@ -135,12 +135,17 @@ async function setupResponseInterception(pg) {
       // Try init
       const initData = parseInitResponse(text);
       if (initData) {
-        console.log(`[bot] Init intercepted: balance=${initData.parsed.balance}`);
+        const hasDefs = initData.raw.includes('def_s');
+        console.log(`[bot] Init intercepted: balance=${initData.parsed.balance}, raw_len=${initData.raw.length}, has_def_s=${hasDefs}`);
+        if (!hasDefs) {
+          // Сокращённый init (только баланс) - всё равно отправляем
+          console.log(`[bot] Init raw[:300]: ${initData.raw.substring(0, 300)}`);
+        }
         await postGameData(initData);
         return;
       }
 
-      console.log(`[bot] gameService response (unrecognized): ${text.substring(0, 100)}`);
+      console.log(`[bot] gameService response (unrecognized): ${text.substring(0, 200)}`);
     } catch (err) {
       if (!err.message.includes('closed') && !err.message.includes('detached')) {
         console.error('[bot] Response handler error:', err.message);

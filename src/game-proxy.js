@@ -115,61 +115,15 @@ module.exports = function setupGameProxy(app, gameState) {
       res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
       res.setHeader('Access-Control-Allow-Origin', '*');
 
-      // doInit — нужен реальный ответ от Pragmatic с живым mgckey
-      // Проксируем напрямую с mgckey из бота
+      // doInit — отдаём данные от бота
       if (action.includes('Init')) {
-        if (gameState.initData?.raw && gameState.initData.raw.includes('def_s')) {
-          // Есть полный init ответ от бота
-          console.log('[proxy] serving initData from bot');
+        if (gameState.initData?.raw) {
+          console.log('[proxy] serving initData from bot, len:', gameState.initData.raw.length);
           return res.send(gameState.initData.raw);
         }
-        // Проксируем реальный doInit на Pragmatic
-        const mgckey = gameState.mgckey;
-        if (mgckey) {
-          const newBody = body + (body ? '&' : '') ;
-          // Переотправляем с реальным mgckey
-          const https = require('https');
-          const postData = body;
-          const options = {
-            hostname: 'demogamesfree.mdvgprfxuu.net',
-            port: 443,
-            path: '/gs2c/ge/v4/gameService',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Content-Length': Buffer.byteLength(postData),
-              'User-Agent': 'Mozilla/5.0',
-              'Referer': 'https://demogamesfree.mdvgprfxuu.net/'
-            }
-          };
-          console.log('[proxy] proxying doInit to Pragmatic with real mgckey');
-          const proxyReq = https.request(options, (proxyRes) => {
-            let data = '';
-            proxyRes.on('data', c => data += c);
-            proxyRes.on('end', () => {
-              console.log('[proxy] doInit response from Pragmatic:', data.substring(0, 100));
-              if (data === 'unlogged' || data.length < 20) {
-                // Сессия истекла - отдаём что есть
-                if (gameState.initData?.raw) return res.send(gameState.initData.raw);
-                return res.send('balance=100000.00&index=1&balance_cash=100000.00&na=s&stime=' + Date.now() + '&sver=5&counter=1&ntp=0.00');
-              }
-              // Сохраняем для следующих запросов
-              if (!gameState.initData) gameState.initData = {};
-              gameState.initData.raw = data;
-              res.send(data);
-            });
-          });
-          proxyReq.on('error', (e) => {
-            console.error('[proxy] doInit proxy error:', e.message);
-            if (gameState.initData?.raw) return res.send(gameState.initData.raw);
-            res.send('balance=100000.00');
-          });
-          proxyReq.write(postData);
-          proxyReq.end();
-          return;
-        }
-        if (gameState.initData?.raw) return res.send(gameState.initData.raw);
-        return res.send('balance=100000.00&index=1&balance_cash=100000.00&na=s&stime=' + Date.now() + '&sver=5&counter=1&ntp=0.00');
+        // Фоллбек если бот ещё не прислал init
+        const now = Date.now();
+        return res.send(`balance=100000.00&index=1&balance_cash=100000.00&balance_bonus=0.00&na=s&stime=${now}&sver=5&counter=1&ntp=0.00`);
       }
 
       // Спин — отдаём данные бота
