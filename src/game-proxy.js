@@ -12,6 +12,8 @@ module.exports = function setupGameProxy(app, gameState) {
   const express = require('express');
   app.use('/engine', express.static(ENGINE_DIR, { maxAge: '1h' }));
   app.use('/operator_logos', express.static(path.join(__dirname, '..', 'public', 'operator_logos'), { maxAge: '1h' }));
+  // logo_info.js иногда запрашивается с /engine/ префиксом
+  app.use('/engine/operator_logos', express.static(path.join(__dirname, '..', 'public', 'operator_logos'), { maxAge: '1h' }));
   // Общая статика из public/
   app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
 
