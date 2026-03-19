@@ -34,7 +34,7 @@ app.get('/observer.html', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.send(observerHtml);
 });
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Static middleware removed - all routes served explicitly
 
 // Health check
 app.get('/health', (req, res) => {
