@@ -162,8 +162,9 @@ async function startScreencastLoop(pg) {
     try {
       const jpeg = await pg.screenshot({
         type: 'jpeg',
-        quality: 65,
+        quality: 50,
         fullPage: false,
+        clip: { x: 0, y: 0, width: 1280, height: 720 }
       });
       await fetch(`${SERVER_URL}/frame`, {
         method: 'POST',
