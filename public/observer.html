@@ -268,7 +268,9 @@
 
   <script>
     // Config — injected or default
-    const WS_URL = 'ws://' + location.hostname + ':3001';
+    // WS на том же порту что и HTTP (Railway использует один порт)
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const WS_URL = wsProto + '//' + location.host;
 
     // State
     let spinCount = 0;

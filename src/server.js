@@ -138,8 +138,9 @@ app.post('/game-data', (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── WebSocket Server ─────────────────────────────────────────────────────────
-const wss = new WebSocketServer({ port: WS_PORT });
+// ─── WebSocket Server (на том же HTTP сервере, не отдельный порт) ────────────
+const httpServer = http.createServer(app);
+const wss = new WebSocketServer({ server: httpServer });
 
 function broadcast(data) {
   const msg = JSON.stringify(data);
@@ -228,10 +229,8 @@ setInterval(() => {
 }, 5000);
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-const httpServer = http.createServer(app);
 httpServer.listen(HTTP_PORT, () => {
-  console.log(`[server] HTTP listening on port ${HTTP_PORT}`);
-  console.log(`[server] WebSocket listening on port ${WS_PORT}`);
+  console.log(`[server] HTTP+WS listening on port ${HTTP_PORT}`);
   console.log(`[server] BOT_SECRET: ${BOT_SECRET.substring(0, 4)}****`);
 });
 
