@@ -21,6 +21,8 @@ RUN npm install --omit=dev
 
 RUN npx playwright install chromium --with-deps
 
+# Cache bust for static files
+ARG CACHEBUST=1
 COPY src/ ./src/
 COPY public/ ./public/
 
