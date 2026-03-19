@@ -1,24 +1,12 @@
-FROM node:20-slim
-
-# Install Playwright Chromium dependencies
-RUN apt-get update && apt-get install -y \
-    wget gnupg ca-certificates \
-    libnss3 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libxkbcommon0 \
-    libxcomposite1 libxdamage1 libxfixes3 \
-    libxrandr2 libgbm1 libpango-1.0-0 \
-    libpangocairo-1.0-0 libx11-xcb1 libxcb-dri3-0 \
-    libxshmfence1 libx11-6 libxext6 libxcb1 \
-    fonts-liberation fonts-noto-color-emoji \
-    && rm -rf /var/lib/apt/lists/*
+# Playwright official image с предустановленным Chromium
+FROM mcr.microsoft.com/playwright:v1.42.1-jammy
 
 WORKDIR /app
 
 COPY package.json ./
 
+# Устанавливаем только Node зависимости (браузеры уже в образе)
 RUN npm install --omit=dev
-
-RUN npx playwright install chromium --with-deps
 
 COPY src/ ./src/
 COPY public/ ./public/
