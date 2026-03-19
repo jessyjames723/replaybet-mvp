@@ -102,6 +102,20 @@ function parseInitResponse(rawText) {
 async function setupResponseInterception(pg) {
   pg.on('response', async (res) => {  // работает и для BrowserContext и для Page
     try {
+      // Перехватываем HTML игры чтобы обновить кеш на сервере
+      if (res.url().includes('html5Game.do')) {
+        const text = await res.text().catch(() => '');
+        if (text.includes('gameService') && text.length > 10000) {
+          console.log('[bot] Sending fresh game HTML to server:', text.length, 'bytes');
+          fetch(`${SERVER_URL}/game-data`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Bot-Token': BOT_SECRET },
+            body: JSON.stringify({ type: 'game_html', html: text, timestamp: Date.now() })
+          }).catch(() => {});
+        }
+        return;
+      }
+
       if (!res.url().includes('ge/v4/gameService')) return;
 
       const status = res.status();

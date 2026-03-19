@@ -26,6 +26,15 @@ const gameState = {
 
 // ─── Express HTTP Server ──────────────────────────────────────────────────────
 const app = express();
+// CORS для игры
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 app.use(express.json({ limit: '1mb' }));
 // Serve observer.html from embedded source (avoids Docker layer cache)
 const observerHtml = require('./observer-page');
@@ -154,6 +163,13 @@ app.post('/game-data', (req, res) => {
   } else if (data.type === 'iframe_url') {
     gameState.iframeUrl = data.url;
     console.log('[server] iframe URL updated:', data.url.substring(0, 80));
+  } else if (data.type === 'game_html') {
+    // Сохраняем свежий HTML игры на диск чтобы proxy отдавал актуальную версию
+    const fs = require('fs');
+    const htmlPath = path.join(__dirname, '..', 'public', 'game_cached.html');
+    fs.writeFileSync(htmlPath, data.html, 'utf8');
+    gameState.gameHtmlUpdatedAt = data.timestamp;
+    console.log('[server] game HTML updated, size:', data.html.length);
   } else {
     return res.status(400).json({ ok: false, error: `Unknown type: ${data.type}` });
   }
