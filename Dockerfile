@@ -1,5 +1,6 @@
 FROM node:20-slim
 
+# Cache bust: 2026-03-19
 RUN apt-get update && apt-get install -y \
     wget gnupg ca-certificates \
     libnss3 libatk1.0-0 libatk-bridge2.0-0 \
@@ -13,9 +14,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Copy both files explicitly
 COPY package.json package-lock.json ./
 
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 RUN npx playwright install chromium --with-deps
 
