@@ -9,10 +9,35 @@ const CACHE_FILE = path.join(__dirname, '..', 'public', 'game_cached.html');
 const PRAGMATIC_HOST = 'demogamesfree.mdvgprfxuu.net';
 
 function patchHtml(html) {
+  // Вытаскиваем datapath из gameConfig чтобы подставить в GAME_URL
+  const datapathMatch = html.match(/"datapath":"([^"]+)"/);
+  const datapath = datapathMatch ? datapathMatch[1] : '/pragmatic/common/v1/games-html5/games/vs/vs20fruitswx/';
+  
+  // Inline script который предустанавливает GAME_URL до загрузки bootstrap
+  const gameUrlPatch = `<script>
+// ReplayBet patch: pre-set GAME_URL so bootstrap.js loads from correct path
+(function() {
+  var _origUHTCONFIG = null;
+  Object.defineProperty(window, 'UHT_CONFIG', {
+    get: function() { return _origUHTCONFIG; },
+    set: function(v) {
+      _origUHTCONFIG = v;
+      if (v && v.GAME_URL === '') {
+        v.GAME_URL = '${datapath}';
+        v.GAME_URL_ALTERNATIVE = '${datapath}';
+      }
+    },
+    configurable: true
+  });
+})();
+</script>`;
+
   return html
+    // Вставляем патч сразу после <head>
+    .replace('<head>', '<head>' + gameUrlPatch)
     // Заменяем все URL Pragmatic CDN
     .replace(/https:\/\/demogamesfree\.mdvgprfxuu\.net\/gs2c/g, '/pragmatic')
-    // contextPath: "/gs2c" -> "/pragmatic" (критично! игра строит пути из contextPath)
+    // contextPath: "/gs2c" -> "/pragmatic"
     .replace(/contextPath:\s*"\/gs2c"/g, 'contextPath: "/pragmatic"')
     // Старые варианты gameService
     .replace(/http:\/\/localhost:[0-9]+\/proxy\/gameService/g, '/pragmatic/ge/v4/gameService')
@@ -104,6 +129,21 @@ module.exports = function setupGameProxy(app, gameState) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.json({ error: 0 });
   });
+
+  // Игра может генерировать пути без /pragmatic/ префикса (/mobile/, /desktop/, /common/, /ge/)
+  // Добавляем catch-all для известных путей движка
+  const gameSubPaths = ['/mobile', '/desktop', '/mini', '/common', '/ge', '/saveSettings', '/regulation', '/stats', '/closeGame', '/logout', '/reloadBalance', '/jackpot', '/announcements'];
+  for (const subPath of gameSubPaths) {
+    app.all(subPath + '/*', (req, res) => {
+      const targetPath = '/gs2c' + req.url;
+      console.log('[proxy] game subpath:', req.url, '->', targetPath);
+      proxyRequest(req, res, targetPath);
+    });
+    app.all(subPath, (req, res) => {
+      const targetPath = '/gs2c' + req.url;
+      proxyRequest(req, res, targetPath);
+    });
+  }
 
   // ВСЁ остальное /pragmatic/* → проксируем на Pragmatic с /gs2c/ префиксом
   app.all('/pragmatic/*', (req, res) => {
