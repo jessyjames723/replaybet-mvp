@@ -182,11 +182,35 @@ async function startBot() {
 
   console.log('[bot] Starting spin loop...');
 
+  // Кликаем на iframe чтобы дать ему фокус перед спинами
+  try {
+    const frames = page.frames();
+    const gameFrame = frames.find(f => f.url().includes('mdvgprfxuu') || f.url().includes('gsfastpro'));
+    if (gameFrame) {
+      const canvas = await gameFrame.$('canvas');
+      if (canvas) {
+        await canvas.click();
+        console.log('[bot] Clicked canvas to focus game frame');
+      }
+    } else {
+      // Кликаем по центру страницы
+      await page.mouse.click(640, 360);
+    }
+  } catch (e) { /* ignore */ }
+
+  await page.waitForTimeout(1000);
+
   // Spin every SPIN_INTERVAL_MS
   spinInterval = setInterval(async () => {
     if (isSpinning) return;
     try {
       isSpinning = true;
+      // Нажимаем Space в контексте game frame
+      const frames = page.frames();
+      const gameFrame = frames.find(f => f.url().includes('mdvgprfxuu') || f.url().includes('gsfastpro'));
+      if (gameFrame) {
+        await gameFrame.press('canvas', 'Space').catch(() => {});
+      }
       await page.keyboard.press('Space');
     } catch (err) {
       if (!err.message.includes('closed') && !err.message.includes('detached')) {
