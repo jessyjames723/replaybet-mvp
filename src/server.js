@@ -151,13 +151,11 @@ app.post('/game-data', (req, res) => {
       console.log(`[server] Spin #${gameState.spinCount}, balance=${spin.balance}, win=${spin.win}`);
     }
 
-  } else {
   } else if (data.type === 'iframe_url') {
     gameState.iframeUrl = data.url;
     console.log('[server] iframe URL updated:', data.url.substring(0, 80));
   } else {
     return res.status(400).json({ ok: false, error: `Unknown type: ${data.type}` });
-  }
   }
 
   res.json({ ok: true });
