@@ -168,6 +168,12 @@ app.post('/game-data', (req, res) => {
     gameState.gameHtml = data.html;
     gameState.gameHtmlUpdatedAt = data.timestamp;
     console.log('[server] game HTML updated in memory, size:', data.html.length);
+    // Извлекаем mgckey для проксирования doInit
+    const mgcMatch = data.html && data.html.match(/"mgckey":"([^"]+)"/);
+    if (mgcMatch) {
+      gameState.mgckey = mgcMatch[1];
+      console.log('[server] mgckey updated:', gameState.mgckey.substring(0, 40));
+    }
   } else {
     return res.status(400).json({ ok: false, error: `Unknown type: ${data.type}` });
   }
