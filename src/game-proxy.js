@@ -10,7 +10,11 @@ const PRAGMATIC_HOST = 'demogamesfree.mdvgprfxuu.net';
 
 function patchHtml(html) {
   return html
+    // Заменяем все URL Pragmatic CDN
     .replace(/https:\/\/demogamesfree\.mdvgprfxuu\.net\/gs2c/g, '/pragmatic')
+    // contextPath: "/gs2c" -> "/pragmatic" (критично! игра строит пути из contextPath)
+    .replace(/contextPath:\s*"\/gs2c"/g, 'contextPath: "/pragmatic"')
+    // Старые варианты gameService
     .replace(/http:\/\/localhost:[0-9]+\/proxy\/gameService/g, '/pragmatic/ge/v4/gameService')
     .replace(/"gameService":"[^"]*\/proxy\/gameService"/g, '"/pragmatic/ge/v4/gameService"');
 }
