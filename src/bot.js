@@ -173,6 +173,17 @@ async function startBot() {
   await page.waitForTimeout(20000);
 
   // Закрываем intro — нужно несколько нажатий (carousel из нескольких слайдов)
+  // Получаем свежий URL iframe слота и отправляем на сервер
+  try {
+    const frames = page.frames();
+    const gameFrame = frames.find(f => f.url().includes('mdvgprfxuu') || f.url().includes('gsfastpro'));
+    if (gameFrame) {
+      const iframeUrl = gameFrame.url();
+      console.log('[bot] Game iframe URL:', iframeUrl.substring(0, 80));
+      await postGameData({ type: 'iframe_url', url: iframeUrl, timestamp: Date.now() });
+    }
+  } catch (e) { console.error('[bot] iframe URL error:', e.message); }
+
   console.log('[bot] Closing intro...');
   for (let i = 0; i < 8; i++) {
     await page.keyboard.press('Enter');

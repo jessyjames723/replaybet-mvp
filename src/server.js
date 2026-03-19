@@ -20,7 +20,8 @@ const gameState = {
   initData: null,
   connectedObservers: 0,
   spinCount: 0,
-  recentSpins: [], // last 10 spins
+  recentSpins: [],
+  iframeUrl: null, // свежий URL iframe от бота
 };
 
 // ─── Express HTTP Server ──────────────────────────────────────────────────────
@@ -37,6 +38,11 @@ app.get('/observer.html', (req, res) => {
 // Static middleware removed - all routes served explicitly
 
 // Health check
+// Отдаём свежий iframe URL боту
+app.get('/iframe-url', (req, res) => {
+  res.json({ url: gameState.iframeUrl });
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: Math.floor(process.uptime()) });
 });
@@ -140,7 +146,12 @@ app.post('/game-data', (req, res) => {
     }
 
   } else {
+  } else if (data.type === 'iframe_url') {
+    gameState.iframeUrl = data.url;
+    console.log('[server] iframe URL updated:', data.url.substring(0, 80));
+  } else {
     return res.status(400).json({ ok: false, error: `Unknown type: ${data.type}` });
+  }
   }
 
   res.json({ ok: true });
