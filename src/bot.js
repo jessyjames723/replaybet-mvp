@@ -9,9 +9,9 @@ const BOT_SECRET = process.env.BOT_SECRET || 'changeme';
 const SPIN_INTERVAL_MS = parseInt(process.env.SPIN_INTERVAL_MS || '5000', 10);
 const SLOT_LOAD_TIMEOUT_MS = parseInt(process.env.SLOT_LOAD_TIMEOUT_MS || '30000', 10);
 
-// Sweet Bonanza 1000 demo URL (direct Pragmatic)
-const GAME_URL = process.env.PRAGMATIC_IFRAME_URL ||
-  'https://demogamesfree.mdvgprfxuu.net/gs2c/html5Game.do?extGame=1&symbol=vs20fruitswx&gname=Sweet%20Bonanza%201000&jurisdictionID=99&lobbyUrl=about:blank';
+// Открываем через bitz.io — там iframe слот загружается корректно
+const GAME_URL = process.env.GAME_URL ||
+  'https://bitz.io/ru/games/sweet-bonanza-1000';
 
 let page = null;
 let browser = null;
@@ -100,7 +100,7 @@ function parseInitResponse(rawText) {
 
 // ─── Response interception ────────────────────────────────────────────────────
 async function setupResponseInterception(pg) {
-  pg.on('response', async (res) => {
+  pg.on('response', async (res) => {  // работает и для BrowserContext и для Page
     try {
       if (!res.url().includes('ge/v4/gameService')) return;
 
@@ -160,10 +160,10 @@ async function startBot() {
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   });
 
-  page = await context.newPage();
+  // Перехватываем ответы на уровне контекста — включая iframe
+  await setupResponseInterception(context);
 
-  // Set up response interception
-  await setupResponseInterception(page);
+  page = await context.newPage();
 
   console.log('[bot] Opening game...');
   await page.goto(GAME_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -172,11 +172,12 @@ async function startBot() {
   console.log('[bot] Waiting for slot to load (~20 sec)...');
   await page.waitForTimeout(20000);
 
-  // Close intro by pressing Space/Enter
+  // Закрываем intro — нужно несколько нажатий (carousel из нескольких слайдов)
   console.log('[bot] Closing intro...');
-  await page.keyboard.press('Space');
-  await page.waitForTimeout(1000);
-  await page.keyboard.press('Enter');
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(600);
+  }
   await page.waitForTimeout(2000);
 
   console.log('[bot] Starting spin loop...');
