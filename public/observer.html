@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReplayBet Observer — Sweet Bonanza 1000</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0f;
+      color: #fff;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    #header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      border-bottom: 2px solid #e94560;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    #header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #e94560, #f5a623);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 1px;
+    }
+
+    #conn-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #aaa;
+    }
+
+    #conn-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #666;
+      transition: background 0.3s;
+    }
+    #conn-dot.online { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+    #conn-dot.offline { background: #f44336; box-shadow: 0 0 6px #f44336; }
+    #conn-dot.bonus { background: #f5a623; box-shadow: 0 0 8px #f5a623; animation: pulse 1s infinite; }
+    #conn-dot.waiting { background: #2196f3; animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Main layout */
+    #main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Game iframe */
+    #game-wrapper {
+      flex: 1;
+      position: relative;
+      background: #000;
+    }
+
+    #game-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* Sidebar overlay */
+    #sidebar {
+      width: 280px;
+      background: linear-gradient(180deg, #1a1a2e 0%, #0a0a1a 100%);
+      border-left: 1px solid #2a2a4a;
+      display: flex;
+      flex-direction: column;
+      padding: 16px;
+      gap: 12px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      transition: color 0.3s;
+    }
+
+    .stat-value.win { color: #4caf50; }
+    .stat-value.bonus { color: #f5a623; }
+    .stat-value.zero { color: #666; }
+
+    /* Bot status block */
+    #bot-status-card {
+      border-color: rgba(233, 69, 96, 0.3);
+    }
+
+    #bot-status-text {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Spin history */
+    #history-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #history-list li {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.04);
+      color: #bbb;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    #history-list li .h-win { color: #4caf50; }
+    #history-list li .h-zero { color: #555; }
+
+    /* BONUS mode overlay */
+    #bonus-banner {
+      display: none;
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(90deg, #f5a623, #e94560);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      padding: 10px 24px;
+      border-radius: 30px;
+      box-shadow: 0 0 30px rgba(245, 166, 35, 0.5);
+      z-index: 999;
+      animation: pulse 0.8s infinite;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      letter-spacing: 1px;
+    }
+
+    #bonus-banner.visible { display: block; }
+
+    /* Footer */
+    #footer {
+      background: #0a0a0f;
+      border-top: 1px solid #1a1a2e;
+      padding: 4px 16px;
+      font-size: 10px;
+      color: #444;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div id="header">
+    <h1>🎰 ReplayBet Observer</h1>
+    <div id="conn-status">
+      <div id="conn-dot" class="waiting"></div>
+      <span id="conn-label">Connecting...</span>
+    </div>
+  </div>
+
+  <!-- Bonus banner -->
+  <div id="bonus-banner">🎉 FREE SPINS! <span id="fs-count"></span></div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Game iframe -->
+    <div id="game-wrapper">
+      <iframe
+        id="game-iframe"
+        src="https://demogamesfree.mdvgprfxuu.net/gs2c/html5Game.do?extGame=1&symbol=vs20fruitswx&gname=Sweet%20Bonanza%201000&jurisdictionID=99&lobbyUrl=about:blank"
+        allow="autoplay; fullscreen"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      ></iframe>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+
+      <!-- Bot status -->
+      <div class="stat-card" id="bot-status-card">
+        <div class="stat-label">Bot Status</div>
+        <div id="bot-status-text">⏳ Waiting...</div>
+      </div>
+
+      <!-- Balance -->
+      <div class="stat-card">
+        <div class="stat-label">Balance</div>
+        <div class="stat-value" id="balance-val">—</div>
+      </div>
+
+      <!-- Last Win -->
+      <div class="stat-card">
+        <div class="stat-label">Last Win</div>
+        <div class="stat-value" id="win-val">—</div>
+      </div>
+
+      <!-- Total Win (this spin) -->
+      <div class="stat-card">
+        <div class="stat-label">Total Win</div>
+        <div class="stat-value" id="totalwin-val">—</div>
+      </div>
+
+      <!-- Spin count -->
+      <div class="stat-card">
+        <div class="stat-label">Spins Watched</div>
+        <div class="stat-value" id="spin-count">0</div>
+      </div>
+
+      <!-- History -->
+      <div class="stat-card" style="flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+        <div class="stat-label" style="margin-bottom: 8px;">Last 10 Spins</div>
+        <ul id="history-list"></ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div id="footer">
+    <span>ReplayBet Observer MVP</span>
+    <span id="server-time">—</span>
+  </div>
+
+  <script>
+    // Config — injected or default
+    const WS_URL = 'ws://' + location.hostname + ':3001';
+
+    // State
+    let spinCount = 0;
+    let wsReconnectDelay = 1000;
+    let ws = null;
+    const historyItems = [];
+
+    // DOM refs
+    const connDot = document.getElementById('conn-dot');
+    const connLabel = document.getElementById('conn-label');
+    const botStatusText = document.getElementById('bot-status-text');
+    const balanceVal = document.getElementById('balance-val');
+    const winVal = document.getElementById('win-val');
+    const totalWinVal = document.getElementById('totalwin-val');
+    const spinCountEl = document.getElementById('spin-count');
+    const historyList = document.getElementById('history-list');
+    const bonusBanner = document.getElementById('bonus-banner');
+    const fsCount = document.getElementById('fs-count');
+    const serverTimeEl = document.getElementById('server-time');
+
+    function setConnStatus(status, label) {
+      connDot.className = status;
+      connLabel.textContent = label;
+    }
+
+    function formatMoney(v) {
+      if (v === null || v === undefined) return '—';
+      return '$' + parseFloat(v).toFixed(2);
+    }
+
+    function handleSpin(data) {
+      spinCount++;
+      spinCountEl.textContent = spinCount;
+
+      const balance = data.balance;
+      const win = data.win ?? 0;
+      const totalWin = data.totalWin ?? 0;
+      const fsLeft = data.fsLeft;
+
+      // Update stats
+      balanceVal.textContent = formatMoney(balance);
+
+      if (win > 0) {
+        winVal.textContent = formatMoney(win);
+        winVal.className = 'stat-value win';
+      } else {
+        winVal.textContent = '$0.00';
+        winVal.className = 'stat-value zero';
+      }
+
+      if (totalWin > 0) {
+        totalWinVal.textContent = formatMoney(totalWin);
+        totalWinVal.className = 'stat-value win';
+      } else {
+        totalWinVal.textContent = '$0.00';
+        totalWinVal.className = 'stat-value zero';
+      }
+
+      // Free spins banner
+      if (fsLeft !== null && fsLeft > 0) {
+        bonusBanner.classList.add('visible');
+        fsCount.textContent = `${fsLeft} spins left`;
+        setConnStatus('bonus', 'BONUS MODE');
+        botStatusText.textContent = '🎰 FREE SPINS ACTIVE';
+        botStatusText.style.color = '#f5a623';
+      } else {
+        bonusBanner.classList.remove('visible');
+      }
+
+      // History
+      addHistory(win, balance);
+    }
+
+    function addHistory(win, balance) {
+      const item = { win, balance, time: new Date().toLocaleTimeString() };
+      historyItems.unshift(item);
+      if (historyItems.length > 10) historyItems.pop();
+
+      historyList.innerHTML = '';
+      historyItems.forEach(h => {
+        const li = document.createElement('li');
+        const winSpan = h.win > 0
+          ? `<span class="h-win">+${formatMoney(h.win)}</span>`
+          : `<span class="h-zero">$0.00</span>`;
+        li.innerHTML = `<span>${h.time}</span>${winSpan}`;
+        historyList.appendChild(li);
+      });
+    }
+
+    function handleStatus(data) {
+      const status = data.botStatus;
+      if (status === 'online') {
+        setConnStatus('online', 'Bot Online');
+        botStatusText.textContent = '✅ Bot Active';
+        botStatusText.style.color = '#4caf50';
+      } else if (status === 'offline') {
+        setConnStatus('offline', 'Bot Offline');
+        botStatusText.textContent = '⚠️ Bot Offline';
+        botStatusText.style.color = '#f44336';
+        bonusBanner.classList.remove('visible');
+      } else if (status === 'initializing') {
+        setConnStatus('waiting', 'Initializing...');
+        botStatusText.textContent = '⏳ Bot Initializing...';
+        botStatusText.style.color = '#2196f3';
+      } else if (status === 'bonus') {
+        setConnStatus('bonus', 'BONUS!');
+        botStatusText.textContent = '🎰 FREE SPINS!';
+        botStatusText.style.color = '#f5a623';
+      }
+    }
+
+    function connectWS() {
+      setConnStatus('waiting', 'Connecting...');
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        setConnStatus('online', 'Connected');
+        wsReconnectDelay = 1000;
+        console.log('[observer.html] WS connected');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case 'spin':
+              handleSpin(msg);
+              break;
+            case 'status':
+              handleStatus(msg);
+              break;
+            case 'init':
+              if (botStatusText.textContent.includes('Waiting')) {
+                botStatusText.textContent = '⏳ Bot Initializing...';
+              }
+              break;
+            case 'pong':
+              // ignore
+              break;
+          }
+        } catch (e) {
+          console.error('[observer.html] parse error:', e);
+        }
+      };
+
+      ws.onclose = () => {
+        setConnStatus('offline', 'Disconnected');
+        console.log(`[observer.html] WS closed. Reconnecting in ${wsReconnectDelay}ms`);
+        setTimeout(() => {
+          connectWS();
+          wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
+        }, wsReconnectDelay);
+      };
+
+      ws.onerror = (err) => {
+        console.error('[observer.html] WS error');
+      };
+    }
+
+    // Ping server periodically
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 30000);
+
+    // Update server time display
+    setInterval(() => {
+      serverTimeEl.textContent = new Date().toLocaleTimeString();
+    }, 1000);
+
+    // Start
+    connectWS();
+  </script>
+</body>
+</html>
