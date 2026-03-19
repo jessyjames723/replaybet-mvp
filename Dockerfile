@@ -29,7 +29,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # Install Node dependencies
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Install Playwright browsers (Chromium only)
 RUN npx playwright install chromium --with-deps
