@@ -38,6 +38,10 @@ app.get('/view', (req, res) => {
 });
 // Static middleware removed - all routes served explicitly
 
+// Game proxy — /game отдаёт пропатченный HTML слота
+const setupGameProxy = require('./game-proxy');
+setupGameProxy(app, gameState);
+
 // Health check
 // Отдаём свежий iframe URL боту
 app.get('/iframe-url', (req, res) => {
