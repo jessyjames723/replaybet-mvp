@@ -7,11 +7,12 @@ const { chromium } = require('playwright');
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${process.env.HTTP_PORT || 3000}`;
 const BOT_SECRET = process.env.BOT_SECRET || 'changeme';
 const SPIN_INTERVAL_MS = parseInt(process.env.SPIN_INTERVAL_MS || '5000', 10);
+const FRAME_INTERVAL_MS = parseInt(process.env.FRAME_INTERVAL_MS || '200', 10);
 const SLOT_LOAD_TIMEOUT_MS = parseInt(process.env.SLOT_LOAD_TIMEOUT_MS || '30000', 10);
 
 // Открываем через bitz.io — там iframe слот загружается корректно
 const GAME_URL = process.env.GAME_URL ||
-  'https://bitz.io/ru/games/sweet-bonanza-1000';
+  'https://bitz.io/ru/games/le-fisherman';
 
 let page = null;
 let browser = null;
@@ -154,6 +155,33 @@ async function setupResponseInterception(pg) {
   });
 }
 
+// ─── Screencast loop ──────────────────────────────────────────────────────────
+async function startScreencastLoop(pg) {
+  console.log(`[bot] Starting screencast, interval=${FRAME_INTERVAL_MS}ms`);
+  while (true) {
+    try {
+      const jpeg = await pg.screenshot({
+        type: 'jpeg',
+        quality: 65,
+        fullPage: false,
+      });
+      await fetch(`${SERVER_URL}/frame`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'X-Bot-Token': BOT_SECRET,
+        },
+        body: jpeg,
+      }).catch(() => {});
+    } catch (e) {
+      if (!e.message.includes('closed') && !e.message.includes('detached')) {
+        console.error('[bot] Screenshot error:', e.message);
+      }
+    }
+    await new Promise(r => setTimeout(r, FRAME_INTERVAL_MS));
+  }
+}
+
 // ─── Main bot loop ────────────────────────────────────────────────────────────
 async function startBot() {
   console.log('[bot] Starting...');
@@ -226,6 +254,9 @@ async function startBot() {
     await page.waitForTimeout(600);
   }
   await page.waitForTimeout(2000);
+
+  // Start screencast in background (no await — runs in parallel with spin loop)
+  startScreencastLoop(page);
 
   console.log('[bot] Starting spin loop...');
 

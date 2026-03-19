@@ -22,6 +22,8 @@ const gameState = {
   spinCount: 0,
   recentSpins: [],
   iframeUrl: null, // свежий URL iframe от бота
+  lastFrame: null, // последний JPEG кадр от бота (Buffer)
+  frameTime: null, // timestamp последнего кадра
 };
 
 // ─── Express HTTP Server ──────────────────────────────────────────────────────
@@ -71,6 +73,45 @@ app.get('/game-state', (req, res) => {
     connectedObservers: gameState.connectedObservers,
     serverTime: Date.now(),
   });
+});
+
+// ─── Frame endpoints (canvas screencast) ─────────────────────────────────────
+
+// POST /frame — принимаем JPEG от бота, рассылаем зрителям
+app.post('/frame', (req, res) => {
+  const token = req.headers['x-bot-token'];
+  if (token !== BOT_SECRET) return res.status(401).end();
+
+  const chunks = [];
+  req.on('data', c => chunks.push(c));
+  req.on('end', () => {
+    const frame = Buffer.concat(chunks);
+    if (frame.length < 1000) return res.status(400).end();
+
+    gameState.lastFrame = frame;
+    gameState.frameTime = Date.now();
+
+    // Рассылаем по WebSocket всем зрителям
+    wss.clients.forEach(ws => {
+      if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'frame',
+          data: frame.toString('base64'),
+          ts: gameState.frameTime,
+        }));
+      }
+    });
+
+    res.json({ ok: true, size: frame.length });
+  });
+});
+
+// GET /frame — последний кадр (polling fallback)
+app.get('/frame', (req, res) => {
+  if (!gameState.lastFrame) return res.status(404).end();
+  res.setHeader('Content-Type', 'image/jpeg');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(gameState.lastFrame);
 });
 
 // Bot posts game data
@@ -215,6 +256,15 @@ wss.on('connection', (ws) => {
       stakes: gameState.initData.stakes,
       paytable: gameState.initData.paytable,
       timestamp: gameState.initData.timestamp,
+    }));
+  }
+
+  // If we have a last frame, send it immediately so observer sees something right away
+  if (gameState.lastFrame) {
+    ws.send(JSON.stringify({
+      type: 'frame',
+      data: gameState.lastFrame.toString('base64'),
+      ts: gameState.frameTime,
     }));
   }
 
