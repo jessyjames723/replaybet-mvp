@@ -1,7 +1,7 @@
 {
   "name": "replaybet-mvp",
-  "version": "1.0.0",
-  "description": "ReplayBet Observer — live slot gameplay broadcast system",
+  "version": "1.0.1",
+  "description": "ReplayBet Observer \u2014 live slot gameplay broadcast system",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
