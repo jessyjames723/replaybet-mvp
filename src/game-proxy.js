@@ -1,75 +1,83 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const CACHE_FILE = path.join(__dirname, '..', 'public', 'game_cached.html');
+const PRAGMATIC_BASE = 'https://demogamesfree.mdvgprfxuu.net';
 
 function patchHtml(html) {
-  // Используем относительный URL - работает на любом домене
   return html
-    .replace(
-      /"gameService":"https:\/\/demogamesfree\.mdvgprfxuu\.net\/gs2c\/ge\/v4\/gameService"/g,
-      '"gameService":"/proxy/gameService"'
-    )
-    .replace(
-      /"gameService":"http:\/\/localhost:[0-9]+\/proxy\/gameService"/g,
-      '"gameService":"/proxy/gameService"'
-    );
+    // Заменяем все URL Pragmatic на наш прокси путь
+    .replace(/https:\/\/demogamesfree\.mdvgprfxuu\.net\/gs2c/g, '/pragmatic')
+    // gameService уже будет /pragmatic/ge/v4/gameService - перехватим отдельно
+    ;
 }
 
 module.exports = function setupGameProxy(app, gameState) {
-
-  // GET /game — пропатченный HTML слота
+  
+  // GET /game — HTML слота с пропатченными URL
   app.get('/game', (req, res) => {
-    // Сначала пробуем свежий HTML из памяти (от бота)
-    let html = gameState.gameHtml || null;
-
-    // Fallback: читаем из файла
-    if (!html && fs.existsSync(CACHE_FILE)) {
-      html = fs.readFileSync(CACHE_FILE, 'utf8');
-    }
-
-    if (!html) {
-      return res.status(503).send(`
-        <html><body style="background:#000;color:#fff;font-family:sans-serif;padding:40px;text-align:center">
-        <h2>⏳ Загружаем игру...</h2>
-        <p>Бот подключается к слоту. Обновите страницу через 30 секунд.</p>
-        <script>setTimeout(()=>location.reload(), 15000)</script>
-        </body></html>
-      `);
-    }
-
-    const patched = patchHtml(html);
+    const html = gameState.gameHtml || (fs.existsSync(CACHE_FILE) ? fs.readFileSync(CACHE_FILE, 'utf8') : null);
+    if (!html) return res.status(503).send('<html><body style="background:#000;color:#fff;padding:40px;text-align:center"><h2>⏳ Загружаем игру...</h2><p>Обновите через 30 сек</p><script>setTimeout(()=>location.reload(),15000)</script></body></html>');
     res.setHeader('Content-Type', 'text/html');
     res.setHeader('Cache-Control', 'no-store');
-    res.send(patched);
+    res.send(patchHtml(html));
   });
 
-  // POST /proxy/gameService — перехватываем запросы слота, возвращаем данные бота
-  app.post('/proxy/gameService', (req, res) => {
-    const body = req.body ? req.body.toString() : '';
-    const params = new URLSearchParams(body);
-    const action = params.get('action') || 'unknown';
-    console.log('[proxy] gameService action:', action);
+  // POST /pragmatic/ge/v4/gameService — перехватываем, возвращаем данные бота
+  app.post('/pragmatic/ge/v4/gameService', (req, res) => {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => {
+      const params = new URLSearchParams(body);
+      const action = params.get('action') || '';
+      console.log('[proxy] gameService action:', action);
 
-    res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', 'application/x-www-form-urlencoded');
+      res.setHeader('Access-Control-Allow-Origin', '*');
 
-    // doInit — возвращаем initData от бота
-    if (action.includes('Init') || action === 'doInit') {
-      if (gameState.initData && gameState.initData.raw) {
+      if (action.includes('Init') && gameState.initData?.raw) {
         return res.send(gameState.initData.raw);
       }
-    }
-
-    // Все остальные (doSpin и др.) — последний спин от бота
-    if (gameState.lastSpin && gameState.lastSpin.raw) {
-      return res.send(gameState.lastSpin.raw);
-    }
-
-    // Нет данных — дефолт
-    res.send('tw=0.00&balance=100000.00&w=0.00&ntp=0.00&s=1,2,3,4,5,6,7,8,9,10,11,1,2,3,4,5,6,7,8,9,10,11,1,2,3,4,5,6,7,8');
+      if (gameState.lastSpin?.raw) {
+        return res.send(gameState.lastSpin.raw);
+      }
+      res.send('tw=0.00&balance=100000.00&w=0.00&ntp=0.00');
+    });
   });
 
-  console.log('[proxy] Routes: GET /game, POST /proxy/gameService');
+  // OPTIONS preflight для gameService
+  app.options('/pragmatic/ge/v4/gameService', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.sendStatus(200);
+  });
+
+  // GET /pragmatic/stats.do — отвечаем OK чтобы не мешало
+  app.get('/pragmatic/stats.do', (req, res) => res.send('{"error":0,"description":"OK"}'));
+  app.post('/pragmatic/stats.do', (req, res) => res.send('{"error":0,"description":"OK"}'));
+
+  // Всё остальное /pragmatic/* — проксируем на Pragmatic
+  app.use('/pragmatic', createProxyMiddleware({
+    target: PRAGMATIC_BASE,
+    changeOrigin: true,
+    pathRewrite: { '^/pragmatic': '/gs2c' },
+    on: {
+      proxyReq: (proxyReq, req) => {
+        proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        proxyReq.setHeader('Referer', PRAGMATIC_BASE);
+      },
+      proxyRes: (proxyRes) => {
+        proxyRes.headers['access-control-allow-origin'] = '*';
+      },
+      error: (err, req, res) => {
+        console.error('[proxy] Proxy error:', err.message);
+        res.status(502).send('Proxy error');
+      }
+    }
+  }));
+
+  console.log('[proxy] Full proxy ready: GET /game, POST /pragmatic/ge/v4/gameService, proxy /pragmatic/*');
 };
