@@ -29,8 +29,9 @@ const app = express();
 app.use(express.json({ limit: '1mb' }));
 // Serve observer.html from embedded source (avoids Docker layer cache)
 const observerHtml = require('./observer-page');
-app.get('/', (req, res) => res.redirect('/observer.html'));
-app.get('/observer.html', (req, res) => {
+app.get('/', (req, res) => res.redirect('/view'));
+app.get('/observer.html', (req, res) => res.redirect('/view'));
+app.get('/view', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 'no-store');
   res.send(observerHtml);
