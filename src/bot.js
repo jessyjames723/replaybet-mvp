@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const { chromium } = require('playwright');
 
-const SERVER_URL = `http://localhost:${process.env.PORT || process.env.HTTP_PORT || 3000}`;
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${process.env.HTTP_PORT || 3000}`;
 const BOT_SECRET = process.env.BOT_SECRET || 'changeme';
 const SPIN_INTERVAL_MS = parseInt(process.env.SPIN_INTERVAL_MS || '5000', 10);
 const SLOT_LOAD_TIMEOUT_MS = parseInt(process.env.SLOT_LOAD_TIMEOUT_MS || '30000', 10);
