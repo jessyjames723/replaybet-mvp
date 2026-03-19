@@ -26,6 +26,21 @@ const gameState = {
 // ─── Express HTTP Server ──────────────────────────────────────────────────────
 const app = express();
 app.use(express.json({ limit: '1mb' }));
+// Отдаём observer.html динамически — подставляем правильный WS URL
+app.get('/observer.html', (req, res) => {
+  const fs = require('fs');
+  const filePath = path.join(__dirname, '..', 'public', 'observer.html');
+  let html = fs.readFileSync(filePath, 'utf8');
+  // Заменяем WS URL на правильный (wss:// на Railway)
+  html = html.replace(
+    /const WS_URL\s*=\s*[^;]+;/,
+    `const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'; const WS_URL = wsProto + '//' + location.host;`
+  );
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(html);
+});
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Health check
