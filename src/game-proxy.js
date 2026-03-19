@@ -35,13 +35,14 @@ function patchHtml(html) {
   return html
     // Вставляем патч сразу после <head>
     .replace('<head>', '<head>' + gameUrlPatch)
-    // Заменяем все URL Pragmatic CDN
+    // Заменяем все URL Pragmatic CDN (НЕ заменяем ключи JSON - только значения URL)
     .replace(/https:\/\/demogamesfree\.mdvgprfxuu\.net\/gs2c/g, '/pragmatic')
     // contextPath: "/gs2c" -> "/pragmatic"
     .replace(/contextPath:\s*"\/gs2c"/g, 'contextPath: "/pragmatic"')
-    // Старые варианты gameService
-    .replace(/http:\/\/localhost:[0-9]+\/proxy\/gameService/g, '/pragmatic/ge/v4/gameService')
-    .replace(/"gameService":"[^"]*\/proxy\/gameService"/g, '"/pragmatic/ge/v4/gameService"');
+    // gameService в JSON: сохраняем ключ, меняем только значение
+    .replace(/"gameService":"https:\/\/demogamesfree[^"]*"/g, '"gameService":"/pragmatic/ge/v4/gameService"')
+    .replace(/"gameService":"http:\/\/localhost:[^"]*"/g, '"gameService":"/pragmatic/ge/v4/gameService"')
+    .replace(/"gameService":"\/proxy\/gameService"/g, '"gameService":"/pragmatic/ge/v4/gameService"');
 }
 
 // Простой ручной прокси вместо http-proxy-middleware (v3 API сломан)
