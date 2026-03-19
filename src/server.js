@@ -53,6 +53,7 @@ app.get('/game-state', (req, res) => {
     botStatus: gameState.botStatus,
     lastSpin: gameState.lastSpin,
     initData: gameState.initData,
+    iframeUrl: gameState.iframeUrl,
     connectedObservers: gameState.connectedObservers,
     serverTime: Date.now(),
   });
