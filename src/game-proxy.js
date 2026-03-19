@@ -14,8 +14,16 @@ module.exports = function setupGameProxy(app, gameState) {
   app.use('/operator_logos', express.static(path.join(__dirname, '..', 'public', 'operator_logos'), { maxAge: '1h' }));
   // logo_info.js иногда запрашивается с /engine/ префиксом
   app.use('/engine/operator_logos', express.static(path.join(__dirname, '..', 'public', 'operator_logos'), { maxAge: '1h' }));
-  // Общая статика из public/
-  app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
+
+  // html5Game.do - Pragmatic endpoint для загрузки игры (bootstrap его вызывает)
+  app.get('/html5Game.do', (req, res) => {
+    let html = fs.readFileSync(GAME_HTML, 'utf8');
+    const mgckey = req.query.mgckey || gameState.mgckey || 'demo-key';
+    html = html.replace('__MGCKEY__', mgckey);
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(html);
+  });
 
   // GET /game — наш HTML с конфигом
   app.get('/game', (req, res) => {
@@ -64,5 +72,8 @@ module.exports = function setupGameProxy(app, gameState) {
     res.json({ status: 'ok' });
   });
 
+  // Общая статика последней (после роутов)
+  app.use(express.static(path.join(__dirname, '..', 'public'), { maxAge: '1h' }));
+  
   console.log('[proxy] Static engine ready: /engine/*, /game, /api/gameService');
 };
