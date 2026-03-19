@@ -12,7 +12,7 @@ const SLOT_LOAD_TIMEOUT_MS = parseInt(process.env.SLOT_LOAD_TIMEOUT_MS || '30000
 
 // Открываем через bitz.io — там iframe слот загружается корректно
 const GAME_URL = process.env.GAME_URL ||
-  'https://bitz.io/ru/games/le-fisherman';
+  'https://bitz.io/ru/games/sweet-bonanza-1000';
 
 let page = null;
 let browser = null;
