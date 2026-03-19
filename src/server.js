@@ -164,12 +164,10 @@ app.post('/game-data', (req, res) => {
     gameState.iframeUrl = data.url;
     console.log('[server] iframe URL updated:', data.url.substring(0, 80));
   } else if (data.type === 'game_html') {
-    // Сохраняем свежий HTML игры на диск чтобы proxy отдавал актуальную версию
-    const fs = require('fs');
-    const htmlPath = path.join(__dirname, '..', 'public', 'game_cached.html');
-    fs.writeFileSync(htmlPath, data.html, 'utf8');
+    // Сохраняем свежий HTML в памяти (Railway filesystem readonly)
+    gameState.gameHtml = data.html;
     gameState.gameHtmlUpdatedAt = data.timestamp;
-    console.log('[server] game HTML updated, size:', data.html.length);
+    console.log('[server] game HTML updated in memory, size:', data.html.length);
   } else {
     return res.status(400).json({ ok: false, error: `Unknown type: ${data.type}` });
   }
