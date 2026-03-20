@@ -1,0 +1,58 @@
+name: Test with Serveo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Start server with SSH tunnel
+        run: |
+          # Start server
+          nohup node src/server-multistream.js > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 3
+          
+          # Create SSH tunnel with serveo.net
+          ssh -o StrictHostKeyChecking=no -R 80:localhost:3000 serveo.net 2>&1 | tee tunnel.log &
+          echo $! > tunnel.pid
+          sleep 5
+          
+          # Extract URL from logs
+          grep -o "Forwarding.*serveo.net" tunnel.log | head -1 | sed 's/Forwarding //' > url.txt
+          echo "Public URL: $(cat url.txt)"
+          
+      - name: Run tests
+        run: |
+          if [ -f url.txt ]; then
+            URL=$(cat url.txt)
+            echo "Testing $URL"
+            curl -f "$URL/health" || echo "Health check failed"
+            curl -f "$URL/stats" || echo "Stats failed"
+          else
+            echo "No URL found"
+            cat tunnel.log
+          fi
+          
+      - name: Keep alive
+        run: sleep 600
+          
+      - name: Cleanup
+        if: always()
+        run: |
+          kill $(cat server.pid) 2>/dev/null || true
+          kill $(cat tunnel.pid) 2>/dev/null || true
