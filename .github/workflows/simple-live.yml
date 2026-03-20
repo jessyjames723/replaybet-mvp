@@ -1,0 +1,33 @@
+name: Simple Live Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Start server
+        run: |
+          node src/server-multistream.js &
+          SERVER_PID=$!
+          sleep 5
+          curl -f http://localhost:3000/health || exit 1
+          echo "✅ Server running on port 3000"
+          echo "Use SSH tunnel to access:"
+          echo "ssh -L 3000:localhost:3000 runner_ip"
+          # Keep alive
+          sleep 300
+          kill $SERVER_PID
