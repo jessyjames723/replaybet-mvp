@@ -1,0 +1,61 @@
+name: Test Live Server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Start server
+        run: |
+          nohup node src/server-multistream.js > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 5
+          curl -f http://localhost:3000/health || (cat server.log && exit 1)
+          
+      - name: Setup ngrok
+        uses: actions-hub/ngrok@v3
+        with:
+          authtoken: ${{ secrets.NGROK_AUTHTOKEN }}
+          proto: http
+          port: 3000
+          region: eu
+          
+      - name: Wait for ngrok
+        run: sleep 10
+          
+      - name: Get public URL
+        run: |
+          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
+          echo "PUBLIC_URL=$(cat ngrok_url.txt)" >> $GITHUB_ENV
+          echo "Public URL: $(cat ngrok_url.txt)"
+          
+      - name: Run smoke tests
+        run: |
+          curl -f "$PUBLIC_URL/health"
+          curl -f "$PUBLIC_URL/stats"
+          echo "✅ Server is live at $PUBLIC_URL"
+          
+      - name: Keep alive (25 min)
+        run: |
+          echo "Server will run for 25 minutes at $PUBLIC_URL"
+          sleep 1500
+          
+      - name: Stop server
+        if: always()
+        run: |
+          kill $(cat server.pid) 2>/dev/null || true
