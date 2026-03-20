@@ -1,27 +1,16 @@
-FROM node:20-slim
-
-RUN apt-get update && apt-get install -y \
-    wget gnupg ca-certificates \
-    libnss3 libatk1.0-0 libatk-bridge2.0-0 \
-    libcups2 libdrm2 libxkbcommon0 \
-    libxcomposite1 libxdamage1 libxfixes3 \
-    libxrandr2 libgbm1 libpango-1.0-0 \
-    libpangocairo-1.0-0 libx11-xcb1 libxcb-dri3-0 \
-    libxshmfence1 libx11-6 libxext6 libxcb1 \
-    fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package*.json ./
+RUN npm ci --only=production
 
-RUN npm install --omit=dev
+COPY . .
 
-RUN npx playwright install chromium --with-deps
-
-COPY src/ ./src/
-COPY public/ ./public/
+ENV PORT=3000
+ENV NODE_ENV=production
+ENV BOT_SECRET=replaybet-secret-2026
 
 EXPOSE 3000
 
-CMD ["node", "src/server.js"]
+CMD ["node", "src/server-multistream.js"]
